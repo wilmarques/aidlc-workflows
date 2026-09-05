@@ -9,6 +9,7 @@ import type { OnboardingFills } from "../../scripts/onboarding.ts";
 const fills: OnboardingFills = {
   invoke: "/aidlc",
   slots: {
+    structure_reference_path: "{{HARNESS_DIR}}/docs/structure-reference.md",
     title_block: `# Project Name <!-- Replace with your project name -->
 
 This project uses AI-DLC (AI-Driven Development Life Cycle) for structured development, running on the **Cursor harness** (the Cursor IDE and the Cursor CLI \`agent\` share this install). The workspace shell ships in \`.cursor/\` (no setup command); describe what you want to build and it sets up the workflow for you. Run \`/aidlc\` followed by a scope or project description to begin. Run \`/aidlc --doctor\` to validate your setup, \`/aidlc --version\` to print the framework version, \`/aidlc --stage <slug>\` to jump to a specific stage, \`/aidlc --phase <name>\` to jump to a phase, \`/aidlc --depth <level>\` to override depth, \`/aidlc --test-strategy <level>\` to override test volume, \`/aidlc --review <class>\` to cap stage reviews (adversarial, advisory, none). Cursor-native shortcuts expose \`/aidlc-status\`, \`/aidlc-jump --stage <slug>\` (or \`--phase <name>\`), and \`/aidlc-scope <name>\` through the same workflow. Run \`/aidlc compose "<task>"\` to get a plan tailored to that task (works up front, from a scan report via \`--report <path>\`, and mid-workflow to re-shape the pending stages - every proposal stops at an approve/edit/reject gate).`,

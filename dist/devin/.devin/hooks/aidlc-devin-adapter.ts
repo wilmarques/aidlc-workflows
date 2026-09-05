@@ -62,7 +62,7 @@
 //   bun .devin/hooks/aidlc-devin-adapter.ts <target>
 // where <target> ∈ session-start | session-end | record-human-turn |
 //                  state-transition-guard | reviewer-scope | review-freeze |
-//                  plan-approval-guard | deliver-stage-rules | fold-usage |
+//                  plan-approval-guard | deliver-stage-rules |
 //                  audit-and-sensors | sync-workflow-state | log-subagent |
 //                  rebuild-stage-graph | validate-state | continue-workflow
 
@@ -634,9 +634,11 @@ export async function run(
     }
 
     case "fold-usage": {
-      // Pipe stdin (with tool_name rewrite) to aidlc-fold-usage.ts. Advisory.
-      const rewritten = rewriteStdinToolName(rawInput, devin);
-      runCore("aidlc-fold-usage.ts", rewritten);
+      // Removed from hooks.v1.json (R1): Devin payloads carry no
+      // transcript_path, so the Claude-specific usage-fold core hook is inert
+      // here. The case remains as a defensive no-op so a stray direct
+      // invocation never crashes. The shared core/hooks/aidlc-fold-usage.ts
+      // stays for the Claude harness, which DOES carry transcript_path.
       return 0;
     }
 
@@ -709,6 +711,13 @@ export async function run(
       // tool_name to Task if needed, but the core hook reads
       // agent_type/agent_id — forward those). This replaces the absent
       // SubagentStop event. Advisory.
+      //
+      // INNER POLL GUARD (R3): the outer matcher ("run_subagent") already
+      // excludes read_subagent polls, but a poll delivered directly to this
+      // target (bypassing matcher filtering) must NOT mint a completion. The
+      // core hook has no tool_name check, so the guard lives here: only
+      // run_subagent dispatches; read_subagent and every other tool are
+      // dropped before reaching the core hook.
       if (tool === "run_subagent") {
         const rewritten = rewriteStdinToolName(rawInput, devin);
         runCore("aidlc-log-subagent.ts", rewritten);

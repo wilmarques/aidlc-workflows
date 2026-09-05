@@ -116,6 +116,11 @@ if (TIER_CAP) {
 }
 // The shared onboarding-doc skeleton, rendered per harness (scripts/onboarding.ts).
 const ONBOARDING_SKELETON = join(CORE_ROOT, "templates", "onboarding.md");
+// R7: the detailed structure reference, shipped INSIDE each dist tree so the
+// onboarding doc can stay small while the full per-surface detail is installed
+// beside it (not a repo-only docs link). Projected with the same {{HARNESS_DIR}}
+// transform as every other core .md.
+const STRUCTURE_REFERENCE = join(CORE_ROOT, "templates", "onboarding-structure-reference.md");
 const HARNESS_TOKEN = /\{\{HARNESS_DIR\}\}/g;
 const GENERATED_SKILL_REGIONS = [
   {
@@ -222,6 +227,27 @@ function projectTierFrontmatter(
   // opencode's reasoning-effort key is `variant:` (its native agent
   // frontmatter name), projected from the same tier table.
   if ("variant" in proj && proj.variant !== null) lines.push(`variant: ${proj.variant}`);
+  // R5 (Devin): strip unsupported Claude frontmatter keys (`disallowedTools`,
+  // `maxTurns`) and emit a Devin-native `allowed-tools` allowlist that
+  // excludes `run_subagent` where delegation is prohibited (every agent with
+  // `disallowedTools: Task`). Devin does not support `disallowedTools` or
+  // `maxTurns`; the supported restriction mechanism is `allowed-tools`. The
+  // two review-only agents (those carrying `maxTurns`) get a read-only list;
+  // all other agents get a broad list excluding only `run_subagent`.
+  // `ask_user_question` is always withheld from subagents by Devin itself,
+  // so it is not listed.
+  const hasMaxTurns = /^maxTurns:\s/m.test(fm);
+  const devinAllowedToolsReview = ["read", "grep", "glob", "webfetch"];
+  const devinAllowedToolsBroad = [
+    "read", "edit", "write", "exec", "grep", "glob", "webfetch",
+    "skill", "request_scope", "notebook_read", "notebook_edit",
+    "todo_write", "apply_patch",
+  ];
+  if (harness === "devin" && disallowedMatches.length > 0) {
+    const tools = hasMaxTurns ? devinAllowedToolsReview : devinAllowedToolsBroad;
+    lines.push("allowed-tools:");
+    for (const t of tools) lines.push(`  - ${t}`);
+  }
   // Rebuild the frontmatter line-wise: replace the tier line with the
   // projected keys, or drop it entirely when every key is omitted. Line-wise
   // filtering (not a regex splice) removes the tier line cleanly wherever it
@@ -230,6 +256,9 @@ function projectTierFrontmatter(
     .split(/\r?\n/)
     .flatMap((line) => {
       if (harness === "kiro" && /^disallowedTools:/.test(line)) return [];
+      // R5: strip unsupported Claude keys for Devin.
+      if (harness === "devin" && /^disallowedTools:/.test(line)) return [];
+      if (harness === "devin" && /^maxTurns:/.test(line)) return [];
       return /^tier:/.test(line) ? lines : [line];
     })
     .join("\n");
@@ -302,11 +331,24 @@ function transform(
     s = substituteToken(s, harnessDir);
     s = applyRulesRename(s, harnessDir, rulesRename);
     if (harness) s = projectTierFrontmatter(s, srcPath, harness);
+    const posixPath = srcPath.split(sep).join("/");
+    // R5 (Devin): correct prose that claims unsupported Claude frontmatter
+    // keys (`maxTurns`, `disallowedTools`) provide enforcement. On Devin these
+    // keys are stripped and NOT enforced — the prose must not claim they are.
+    if (harness === "devin" && posixPath.includes("/agents/") && posixPath.endsWith("-agent.md")) {
+      s = s.replace(
+        /\(the `maxTurns: 60` frontmatter above - keep the two numbers in sync\)/g,
+        "(Devin does not enforce a turn cap; deliver the review promptly)",
+      );
+      s = s.replace(
+        /the `maxTurns: 60` frontmatter above/g,
+        "a turn cap (not enforced on Devin)",
+      );
+    }
     // Cursor, opencode, and Copilot persona bodies are mutable active-space
     // pointers. Ship their memory references on the default seed so the first
     // startup's repointHarnessIncludes(project, "default") is byte-identical;
     // later space switches still rewrite the same concrete segment in place.
-    const posixPath = srcPath.split(sep).join("/");
     if (
       (harness === "cursor" || harness === "opencode" || harness === "copilot") &&
       posixPath.includes("/agents/") &&
@@ -693,6 +735,27 @@ function buildTree(m: HarnessManifest, outRoot: string, seedFrom: string): strin
     const outPath = projectRoot ? join(outRoot, dst) : join(treeRoot, dst);
     mkdirSync(dirname(outPath), { recursive: true });
     writeFileSync(outPath, transform(dst, Buffer.from(rendered, "utf-8"), harnessDir, m.rulesRename, harnessKind));
+  }
+
+  // 2b.5. Project the detailed structure reference into the harness tree at
+  //       <harnessDir>/docs/structure-reference.md. The onboarding doc carries
+  //       a short navigation summary that points here; this file holds the full
+  //       per-surface detail so the onboarding doc stays under its byte budget.
+  //       Shipped INSIDE the dist tree (not a repo-only docs link). Same
+  //       {{HARNESS_DIR}} + rules-rename transform as every other core .md.
+  //       {{INVOKE}} is substituted from the manifest's onboarding fills (or
+  //       a default if the harness has no onboarding block, e.g. codex).
+  {
+    const refDir = join(treeRoot, "docs");
+    mkdirSync(refDir, { recursive: true });
+    const invoke = m.onboarding?.fills.invoke ?? "/aidlc";
+    const refContent = readFileSync(STRUCTURE_REFERENCE, "utf-8")
+      .split("{{INVOKE}}").join(invoke);
+    const refDst = "docs/structure-reference.md";
+    writeFileSync(
+      join(refDir, "structure-reference.md"),
+      transform(refDst, Buffer.from(refContent, "utf-8"), harnessDir, m.rulesRename, harnessKind),
+    );
   }
 
   // 2c. Emit the relocated method ("memory") tree at the workspace root

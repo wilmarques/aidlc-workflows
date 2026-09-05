@@ -8,7 +8,20 @@ description: >
   Engineering manager responsible for team formation, Bolt sequencing, and phase handoffs.
   Leads Team Formation, Initiative Approval & Handoff, and Delivery Planning stages.
   Supports Scope Definition and Units Generation.
-disallowedTools: Task
+allowed-tools:
+  - read
+  - edit
+  - write
+  - exec
+  - grep
+  - glob
+  - webfetch
+  - skill
+  - request_scope
+  - notebook_read
+  - notebook_edit
+  - todo_write
+  - apply_patch
 ---
 <!-- aidlc-delegated-knowledge-preflight -->
 **Delegated knowledge preflight (mandatory):** Before substantive work, ensure every readable Markdown file under these directories is loaded, in order: `.devin/knowledge/aidlc-shared/`, `.devin/knowledge/aidlc-delivery-agent/`, `aidlc/spaces/<active-space>/knowledge/aidlc-shared/`, then `aidlc/spaces/<active-space>/knowledge/aidlc-delivery-agent/`. A native resource preload satisfies this requirement; otherwise read the files now. The dispatch brief supplies rules and artifact paths separately.

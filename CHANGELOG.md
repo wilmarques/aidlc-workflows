@@ -1,6 +1,19 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [2.7.4] - 2026-09-02
+
+Devin harness review fixes: removes inert usage-fold hook registrations, makes generated runners user-only, strips unsupported persona frontmatter fields, raises the doctor version floor, and compresses onboarding output to a project-owned byte limit. **Upgrade:** re-copy `dist/devin/` (and `dist/<harness>/` for the onboarding compression, which affects every harness) into your project, then fully restart Devin CLI.
+
+* Devin: removed both `fold-usage` registrations from `PreToolUse` and `PostToolUse` in `.devin/hooks.v1.json` — Devin payloads carry no `transcript_path`, so the Claude-specific usage-fold core hook was inert here. The shared `core/hooks/aidlc-fold-usage.ts` remains for the Claude harness. The adapter case stays as a defensive no-op.
+* Devin: every generated stage/scope runner now carries `triggers: [user]` so the model cannot self-dispatch a mutating stage — only an explicit user command fires a runner. The policy is persisted in `tools/data/harness.json` so regeneration during plugin composition applies it too.
+* Devin: personas now use Devin-native `allowed-tools` allowlists instead of the unsupported Claude `disallowedTools`/`maxTurns` frontmatter fields. Agents with `disallowedTools: Task` get an allowlist excluding `run_subagent`; the two review-only agents get a read-only allowlist. Prose claiming `maxTurns` enforcement has been corrected.
+* Devin: `/aidlc --doctor` now searches PATH first, then on macOS checks the Desktop bundle path. Missing binary → advisory (not failure); old/broken selected binary → failure. The version floor is raised from 3000.3.0 to 3000.3.22 (the first version with confirmed exit-code-2/stderr blocking compatibility). Desktop hook execution remains unverified until live macOS evidence.
+* Devin: added an inner poll-exclusion guard in the `log-subagent` adapter target so `read_subagent` polls delivered directly to the target cannot mint a `SUBAGENT_COMPLETED` record, even if matcher filtering is bypassed.
+* All harnesses: the onboarding doc (CLAUDE.md / AGENTS.md) is compressed to ≤12 KiB (12,288 bytes) by moving the detailed AI-DLC structure reference into a separate installed file at `<harness-dir>/docs/structure-reference.md`. The onboarding doc carries a short navigation summary that points to the reference. Safety guidance (startup, resumption, approval boundaries, artifact locations, untrusted-document handling) is retained near the beginning.
+* Devin: `docs/guide/harnesses/devin.md` updated with the minimum version, Desktop binary discovery vs Desktop hook execution, usage-ledger limitations, runner/persona policy, onboarding constraints, and Claude/Devin coexistence guidance.
+* Fixtures: `tests/fixtures/devin-hook-payloads/payloads.json` updated to remove invented `cwd`/`transcript_path` from captured-shape payloads and add observed `prompt_id`/`tool_use_id` where appropriate.
+
 ## [2.7.3] - 2026-09-01
 
 Post-merge fixes for the devin release-engineering PR (#1): closes an unasserted build gate, removes a tautological test assertion, and refreshes a stale test header. **Upgrade:** no action required beyond re-copying `dist/devin/` if you use the compiled single-binary release; the runtime-paths and build-binaries changes from #1 are unchanged.

@@ -9,11 +9,10 @@ every distribution — only the shell differs. The tree is **generated** from
 
 ## Prerequisites
 
-- **Devin CLI ≥ 3000.3.0** — earlier versions lack the dedicated
-  `mcp_config.json` files and the modern `.devin/` config layout
-  (`hooks.v1.json` as the whole-hooks-object file, project config limited to
-  permissions/read_config_from/hooks). `/aidlc --doctor` enforces the pin. Check
-  with `devin --version`.
+- **Devin CLI ≥ 3000.3.22** — this is the first version with confirmed
+  exit-code-2/stderr blocking compatibility for PreToolUse guards. Earlier
+  3000.3.x versions may partially work but are not verified. `/aidlc --doctor`
+  enforces the pin. Check with `devin --version`.
 - **bun** — same requirement as every harness; every tool and hook runs via
   bun. Install via `curl -fsSL https://bun.sh/install | bash` (or
   `npm install -g bun` / `powershell -c "irm bun.sh/install.ps1 | iex"` on
@@ -100,6 +99,76 @@ runners are explicit-only: `/aidlc-domain-design`, `/aidlc-bugfix`, etc.
   structured questions, web fetch, and all MCP tools — so workflows run without
   per-call permission prompts. Personal overrides via `.devin/config.local.json`
   and `.devin/mcp_config.local.json` (both gitignored).
+
+## Binary discovery and Desktop support
+
+`/aidlc --doctor` discovers the `devin` binary by searching PATH first, then on
+macOS only, checking the Desktop bundle at
+`/Applications/Devin.app/Contents/Resources/app/extensions/windsurf/devin/bin/devin`.
+If neither exists, the doctor reports an advisory — version verification is
+unavailable, not a hard failure. An old or broken selected binary is a failure
+(not an advisory): the user has a `devin` but it is too old or broken to run.
+
+**Desktop hook execution is not verified.** Binary discovery proves the bundle
+exists, not that Desktop runs project hooks. Live verification of Desktop hook
+execution requires separate macOS testing that has not been performed in this
+environment (Linux/WSL2). Do not assume Desktop support based on binary
+discovery alone.
+
+## Usage-ledger limitations
+
+Devin payloads do not carry `transcript_path`, so the Claude-specific
+usage-fold hook (`core/hooks/aidlc-fold-usage.ts`) is inert on Devin. The hook
+registrations have been removed from `.devin/hooks.v1.json`; the shared core
+hook remains for the Claude harness, which does provide `transcript_path`.
+
+Consequence: Devin does not produce a per-session token usage ledger. Run
+`/aidlc --status` or `/aidlc-session-cost` for deterministic cost aggregates
+sourced from `aidlc-runtime.ts summary` (no LLM-side counting).
+
+## Runner and persona policy
+
+- **Runners are user-only.** Every generated stage/scope runner carries
+  `triggers: [user]` in its frontmatter, so the model cannot self-dispatch a
+  mutating stage — only an explicit user command (e.g. `/aidlc-code-generation`)
+  fires a runner. This prevents bypassing the orchestrator's approval gates.
+- **Personas use `allowed-tools`, not `disallowedTools`.** Devin does not
+  support the Claude `disallowedTools` or `maxTurns` frontmatter fields. The
+  packager strips them and emits a Devin-native `allowed-tools` allowlist.
+  Every agent with `disallowedTools: Task` in core gets an allowlist that
+  excludes `run_subagent` (delegation is prohibited). The two review-only
+  agents (product-lead, architecture-reviewer) get a read-only allowlist (no
+  edit/write/exec). Prose that claimed `maxTurns` provides enforcement has been
+  corrected — Devin does not enforce a turn cap.
+
+## Onboarding constraints
+
+The shipped `AGENTS.md` is kept within a project-owned byte limit of 12 KiB
+(12,288 bytes) so it fits comfortably within Devin's documented 32 KiB ceiling.
+The detailed AI-DLC structure reference — per-surface descriptions, the
+DocumentKB split, stage-runner semantics, and the plugin model — is installed
+beside the onboarding doc at `.devin/docs/structure-reference.md` and linked
+from the onboarding doc's navigation summary. This is a project-owned limit,
+not a vendor guarantee: it does not prove retention under arbitrary user rules.
+
+## Claude/Devin coexistence
+
+If you install both the Claude and Devin harnesses in the same project, be
+aware that the Claude compatibility imports include hooks. If both
+installations are active, the same AIDLC audit event may be processed twice
+(once by each harness's hook set). To avoid duplicate audit processing:
+
+1. **Use one harness per project.** This is the simplest and recommended
+   approach — pick the harness you run and install only that one.
+2. **If you need both**, select one hook source by enabling only one
+   harness's hooks. On Devin, run `/hooks` and approve only the `.devin/`
+   hooks; on Claude, remove or disable the `.claude/` hook registrations.
+   Do not silently disable all Claude imports for existing users —
+   explicitly choose which hook source is active.
+
+The engine, state machine, and audit log are harness-neutral and work
+identically regardless of which harness's hooks are active. The risk is
+duplicate audit entries, not incorrect state.
 
 ## Git integration
 

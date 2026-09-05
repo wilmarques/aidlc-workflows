@@ -353,6 +353,53 @@ describe("t332 devin adapter — stdin shim normalizes Devin payloads to core ho
     }
   });
 
+  test("11a: log-subagent with read_subagent poll does NOT mint a completion (inner poll guard, R3)", () => {
+    // Deliver a read_subagent poll DIRECTLY to the log-subagent target,
+    // bypassing the outer "run_subagent" matcher. The adapter's inner guard
+    // must drop it before the core hook runs, so no SUBAGENT_COMPLETED is
+    // appended. This proves poll exclusion even when matcher filtering is
+    // bypassed.
+    const dir = scratchProject(true);
+    try {
+      const before = readAudit(dir).split("SUBAGENT_COMPLETED").length - 1;
+      const r = runAdapter(
+        dir,
+        "log-subagent",
+        withCwd(FIXTURES.postToolUse_readSubagent_poll as Record<string, unknown>, dir),
+      );
+      expect(r.code).toBe(0);
+      const after = readAudit(dir).split("SUBAGENT_COMPLETED").length - 1;
+      expect(after).toBe(before);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("11b: log-subagent poll after a run_subagent completion adds no second completion (R3)", () => {
+    // One valid run_subagent completion followed by two read_subagent polls
+    // for the same delegate: exactly one SUBAGENT_COMPLETED, polls append
+    // neither completions nor unknown-agent entries.
+    const dir = scratchProject(true);
+    try {
+      const r1 = runAdapter(dir, "log-subagent", withCwd(FIXTURES.postToolUse_runSubagent as Record<string, unknown>, dir));
+      expect(r1.code).toBe(0);
+      const afterFirst = readAudit(dir).split("SUBAGENT_COMPLETED").length - 1;
+      expect(afterFirst).toBe(1);
+      for (let i = 0; i < 2; i++) {
+        const r = runAdapter(
+          dir,
+          "log-subagent",
+          withCwd(FIXTURES.postToolUse_readSubagent_poll as Record<string, unknown>, dir),
+        );
+        expect(r.code).toBe(0);
+      }
+      const afterPolls = readAudit(dir).split("SUBAGENT_COMPLETED").length - 1;
+      expect(afterPolls).toBe(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   // --- record-human-turn: UserPromptSubmit + ask_user_question PostToolUse ---
 
   test("12: record-human-turn with UserPromptSubmit is advisory (exit 0)", () => {

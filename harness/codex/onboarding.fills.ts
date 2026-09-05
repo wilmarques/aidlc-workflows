@@ -13,6 +13,7 @@ import type { OnboardingFills } from "../../scripts/onboarding.ts";
 const fills: OnboardingFills = {
   invoke: "$aidlc",
   slots: {
+    structure_reference_path: "{{HARNESS_DIR}}/docs/structure-reference.md",
     title_block: `# AI-DLC on Codex CLI
 
 This project uses AI-DLC (AI-Driven Development Life Cycle) under the OpenAI

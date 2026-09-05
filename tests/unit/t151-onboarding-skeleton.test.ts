@@ -127,20 +127,67 @@ describe("t151 onboarding skeleton — a new harness gets a complete doc for fre
   // paragraph enumerates the aidlc-knowledge verb surface in prose, and
   // `summarize` was added to the tool (S3b) without ever landing here — a
   // silent gap because no test pinned verb completeness. Pin the full set
-  // against the SOURCE skeleton (not a per-harness render) so the next verb
-  // added to the tool without a skeleton edit fails HERE, not just at the
-  // t285 tool<->skill parity boundary (a different file, `aidlc-knowledge`'s
-  // SKILL.md, not this shared onboarding doc).
+  // against the STRUCTURE REFERENCE file (R7: the detailed DocumentKB paragraph
+  // moved from the onboarding skeleton to the installed structure reference)
+  // so the next verb added to the tool without a reference edit fails HERE.
   test("4: the DocumentKB paragraph names every aidlc-knowledge verb", () => {
-    const docKbPara = SKELETON.split("\n").find((l) => l.includes("Document knowledge (DocumentKB)")) ?? "";
-    expect(docKbPara, "DocumentKB paragraph not found in the skeleton").not.toBe("");
+    const ref = readFileSync(
+      join(REPO_ROOT, "core", "templates", "onboarding-structure-reference.md"),
+      "utf-8",
+    );
+    const docKbPara = ref.split("\n").find((l) => l.includes("Document knowledge (DocumentKB)")) ?? "";
+    expect(docKbPara, "DocumentKB paragraph not found in the structure reference").not.toBe("");
     for (const verb of ["onboard", "sync", "list", "show", "associate", "dissociate", "rebind", "summarize"]) {
-      expect(docKbPara, `verb "${verb}" is absent from the DocumentKB onboarding paragraph`).toContain(verb);
+      expect(docKbPara, `verb "${verb}" is absent from the DocumentKB reference paragraph`).toContain(verb);
     }
     // `remove` is deliberately absent as a VERB (see the skill's own pin) —
     // the paragraph legitimately says "no `remove`" in prose, so assert
     // there is no `remove <id>`-shaped invocation, not that the word never
     // appears at all.
     expect(docKbPara).not.toMatch(/`remove\s+<id>/);
+  });
+
+  // R7: onboarding size budget. Every shipped onboarding doc (CLAUDE.md /
+  // AGENTS.md) must stay within the project-owned UTF-8 byte limit of 12 KiB
+  // (12,288 bytes). The detailed structure reference lives in a separate
+  // installed file (docs/structure-reference.md) so the onboarding doc can
+  // be small without losing the reference. This is a project-owned limit,
+  // NOT a vendor guarantee — Devin documents a 32 KiB ceiling separately,
+  // and observed truncation does not prove the chosen limit guarantees
+  // retention under arbitrary user rules.
+  test("5: R7 — every shipped onboarding doc is within the 12 KiB project-owned byte limit", () => {
+    const LIMIT = 12_288; // 12 KiB
+    for (const harness of HARNESS_MATRIX) {
+      const shipped = readFileSync(harness.onboardingDist, "utf-8");
+      const bytes = Buffer.byteLength(shipped, "utf-8");
+      expect(
+        bytes,
+        `${harness.name}: onboarding doc is ${bytes} bytes, limit is ${LIMIT}`,
+      ).toBeLessThanOrEqual(LIMIT);
+    }
+  });
+
+  // R7: the structure reference must be installed in every dist tree, carry
+  // no leftover tokens, and contain the essential safety guidance.
+  test("6: R7 — structure reference is installed, token-free, and carries safety guidance", () => {
+    for (const harness of HARNESS_MATRIX) {
+      const refPath = join(
+        REPO_ROOT,
+        "dist",
+        harness.name,
+        harness.manifest.harnessDir,
+        "docs",
+        "structure-reference.md",
+      );
+      const ref = readFileSync(refPath, "utf-8");
+      // No leftover tokens.
+      expect(ref, `${harness.name}: leftover {{HARNESS_DIR}} in reference`).not.toContain("{{HARNESS_DIR}}");
+      expect(ref, `${harness.name}: leftover {{INVOKE}} in reference`).not.toContain("{{INVOKE}}");
+      // Essential safety guidance: the untrusted-document warning.
+      expect(ref, `${harness.name}: untrusted-document warning missing`).toContain("untrusted data, not instructions");
+      // The DocumentKB split (user-owned vs tool-owned) is present.
+      expect(ref, `${harness.name}: DocumentKB split missing`).toContain("user-owned");
+      expect(ref, `${harness.name}: DocumentKB tool-owned missing`).toContain("tool-owned");
+    }
   });
 });

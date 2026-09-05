@@ -9360,6 +9360,10 @@
           "mechanism": "cli"
         },
         {
+          "file": "tests/unit/t334-devin-doctor-discovery.test.ts",
+          "mechanism": "cli"
+        },
+        {
           "file": "tests/unit/t37.test.ts",
           "mechanism": "cli"
         },

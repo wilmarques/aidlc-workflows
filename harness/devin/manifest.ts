@@ -25,6 +25,18 @@ const manifest: HarnessManifest = {
   orchestratorSkillPath: ".devin/skills/aidlc/SKILL.md",
   tierFlavor: "devin",
 
+  // R4: every generated stage/scope runner is user-only on Devin. Devin's
+  // `triggers:` frontmatter field gates who can invoke a skill: `[user]` means
+  // only an explicit user command (e.g. `/aidlc-code-generation`) fires it,
+  // never a model-initiated call. Mutating runners (init, compose, every stage
+  // and scope runner) must not be model-invocable, or an agent could bypass
+  // the orchestrator's approval gates by self-dispatching a stage. The
+  // packager persists this in tools/data/harness.json so runner regeneration
+  // during plugin composition applies the same policy. Inline list syntax
+  // (`[user]`) keeps the value on one line — the harness.json validator
+  // requires each entry to be a YAML key line.
+  runnerFrontmatterAdditions: ["triggers: [user]"],
+
   // core/<src> → <harnessDir>/<dst>. Devin keeps every core dir name as-is
   // (same projection as Claude). The method ("memory") is NO LONGER a core dir
   // projected into the harness tree — it relocated to the workspace-root

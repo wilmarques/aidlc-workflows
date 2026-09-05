@@ -908,6 +908,10 @@ describe("mechanismsOf is body-derived (milestone 3)", () => {
     // guard enforcement, and session lifecycle routing across a real process
     // boundary — in-process calls would catch the throws that mask the contract.
     "unit/t332-devin-adapter.test.ts",
+    // t334 spawns the shipped doctor tool with stub `devin` binaries on a
+    // controlled PATH to prove binary discovery, version-floor enforcement,
+    // and advisory-vs-failure semantics across a real process boundary.
+    "unit/t334-devin-doctor-discovery.test.ts",
     "integration/t102.test.ts",
     "integration/t104.test.ts",
     "integration/t105.test.ts",

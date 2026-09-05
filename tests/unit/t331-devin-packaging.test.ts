@@ -142,6 +142,15 @@ describe("t331 dist/devin packaging parity + shell shape", () => {
     expect(log?.matcher).toBe("run_subagent");
     const rebuild = findTarget("rebuild-stage-graph");
     expect(rebuild?.matcher).toBe("exec");
+
+    // R1: fold-usage is NOT wired on Devin (Devin payloads carry no
+    // transcript_path, so the Claude-specific usage-fold hook is inert here).
+    // The shared core/hooks/aidlc-fold-usage.ts stays for the Claude harness.
+    const allTargets = [
+      ...(wiring.PreToolUse ?? []),
+      ...(wiring.PostToolUse ?? []),
+    ].flatMap((g) => g.hooks.map((h) => h.command));
+    expect(allTargets.some((cmd) => cmd.endsWith("fold-usage"))).toBe(false);
   });
 
   test("4: config.json shape — permissions, read_config_from, no inference keys", () => {
@@ -252,5 +261,60 @@ describe("t331 dist/devin packaging parity + shell shape", () => {
     expect(skill).not.toContain(".claude");
     expect(skill).toMatch(/^triggers:/m);
     expect(skill).toContain("Harness notes (Devin CLI)");
+  });
+
+  test("11: R4 — generated runners carry triggers: [user] (user-only invocation)", () => {
+    // Every generated stage/scope runner must carry `triggers: [user]` so
+    // the model cannot self-dispatch a mutating stage. Check a representative
+    // stage runner, the init runner, and the compose runner.
+    for (const runner of ["aidlc-code-generation", "aidlc-init", "aidlc-compose"]) {
+      const skill = readFileSync(join(ENGINE, "skills", runner, "SKILL.md"), "utf-8");
+      expect(skill).toMatch(/^triggers: \[user\]$/m);
+    }
+    // The harness.json persists the runnerFrontmatterAdditions for regen.
+    const harness = JSON.parse(
+      readFileSync(join(ENGINE, "tools", "data", "harness.json"), "utf-8"),
+    ) as { runnerFrontmatterAdditions?: string[] };
+    expect(harness.runnerFrontmatterAdditions).toEqual(["triggers: [user]"]);
+  });
+
+  test("12: R5 — personas strip unsupported Claude keys and emit allowed-tools", () => {
+    const agentsDir = join(ENGINE, "agents");
+    const agents = readdirSync(agentsDir).filter((f) => f.endsWith("-agent.md"));
+    expect(agents.length).toBeGreaterThan(10);
+    for (const file of agents) {
+      const body = readFileSync(join(agentsDir, file), "utf-8");
+      const fm = body.match(/^---\n([\s\S]*?)\n---\n/);
+      expect(fm, `${file}: no frontmatter`).not.toBeNull();
+      const frontmatter = fm![1];
+      // Unsupported Claude keys must be absent from Devin frontmatter.
+      expect(frontmatter, `${file}: disallowedTools in frontmatter`).not.toMatch(
+        /^disallowedTools:/m,
+      );
+      expect(frontmatter, `${file}: maxTurns in frontmatter`).not.toMatch(
+        /^maxTurns:/m,
+      );
+      // Every agent with disallowedTools: Task in core gets an allowed-tools
+      // allowlist that excludes run_subagent.
+      expect(frontmatter, `${file}: no allowed-tools`).toMatch(/^allowed-tools:/m);
+      expect(frontmatter, `${file}: run_subagent in allowed-tools`).not.toContain(
+        "run_subagent",
+      );
+    }
+    // Review-only agents (product-lead, architecture-reviewer) get a
+    // read-only allowlist (no edit/write/exec).
+    for (const reviewer of ["aidlc-product-lead-agent.md", "aidlc-architecture-reviewer-agent.md"]) {
+      const body = readFileSync(join(agentsDir, reviewer), "utf-8");
+      const fm = body.match(/^---\n([\s\S]*?)\n---\n/)!;
+      const frontmatter = fm[1];
+      expect(frontmatter).not.toMatch(/^\s+- edit$/m);
+      expect(frontmatter).not.toMatch(/^\s+- write$/m);
+      expect(frontmatter).not.toMatch(/^\s+- exec$/m);
+    }
+    // Prose must not claim maxTurns/disallowedTools provide enforcement.
+    for (const reviewer of ["aidlc-product-lead-agent.md", "aidlc-architecture-reviewer-agent.md"]) {
+      const body = readFileSync(join(agentsDir, reviewer), "utf-8");
+      expect(body).not.toContain("the `maxTurns: 60` frontmatter above");
+    }
   });
 });

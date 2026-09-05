@@ -331,7 +331,7 @@ describe("documentation parity derives current behavior from authored implementa
 
     for (const doc of [
       read("README.md"),
-      read("core", "templates", "onboarding.md"),
+      read("core", "templates", "onboarding-structure-reference.md"),
       read("docs", "guide", "06-agents.md"),
     ]) {
       expect(doc).toContain(String(agentNames.length));
@@ -433,7 +433,7 @@ describe("documentation parity derives current behavior from authored implementa
       `exactly ${numberWord(engineCommands.length)} subcommands: ${codeList(engineCommands)}`;
 
     for (const path of [
-      ["core", "templates", "onboarding.md"],
+      ["core", "templates", "onboarding-structure-reference.md"],
       ["docs", "guide", "glossary.md"],
       ["docs", "harness-engineering", "00-overview.md"],
       ["docs", "reference", "03-orchestrator.md"],

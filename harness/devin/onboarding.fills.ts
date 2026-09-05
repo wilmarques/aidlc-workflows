@@ -7,6 +7,8 @@ import type { OnboardingFills } from "../../scripts/onboarding.ts";
 const fills: OnboardingFills = {
   invoke: "/aidlc",
   slots: {
+    structure_reference_path: "{{HARNESS_DIR}}/docs/structure-reference.md",
+
     title_block: `<!--
   Devin CLI auto-loads {{HARNESS_DIR}}/rules/aidlc.md into ambient context on
   session start (no @-import line needed). That stub pulls the AIDLC method in

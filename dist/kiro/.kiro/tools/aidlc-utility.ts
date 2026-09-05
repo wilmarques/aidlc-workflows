@@ -2724,36 +2724,72 @@ function handleDoctor(projectDir: string, flags: Record<string, string> = {}): v
         fix: `copy from \`${from}\``,
       });
     }
-    // Minimum Devin CLI version pin: v3000.3 introduced the dedicated
-    // mcp_config.json files and the modern .devin/ config layout this port
-    // relies on (hooks.v1.json as the whole-hooks-object file, project
-    // config limited to permissions/read_config_from/hooks). Older versions
-    // store MCP servers under the main config's mcpServers key and use a
-    // different hooks file shape — the wiring would silently no-op.
-    const MIN_DEVIN = [3000, 3, 0] as const;
-    const devinBin = Bun.which("devin");
-    const devinVer = devinBin
-      ? Bun.spawnSync([devinBin, "--version"], { stdout: "pipe", stderr: "ignore" })
-      : null;
-    const devinVerText = (devinVer?.stdout?.toString() ?? "").trim();
-    const devinVerMatch = devinVerText.match(/(\d+)\.(\d+)\.(\d+)/);
-    if (!devinVerMatch) {
+    // Minimum Devin CLI version pin: v3000.3.22 introduced the exit-code-2
+    // stderr blocking compatibility this port relies on (PreToolUse guards
+    // block via exit 2 + stderr; older versions did not surface stderr
+    // reliably). Earlier 3000.3.x versions may partially work but are not
+    // verified — the floor is the first version with confirmed blocking.
+    //
+    // Discovery (R6): search PATH first, then on macOS check the Desktop
+    // bundle's bundled binary at /Applications/Devin.app/Contents/Resources/
+    // app/extensions/windsurf/devin/bin/devin (off PATH). If neither exists,
+    // report an advisory — version verification is unavailable, not a hard
+    // failure. An old or broken SELECTED binary is a failure (not an
+    // advisory): the user has a devin but it is too old or broken to run.
+    // Desktop bundle discovery does NOT prove Desktop runs hooks — that
+    // requires separate live verification (L07).
+    const MIN_DEVIN = [3000, 3, 22] as const;
+    const DESKTOP_BUNDLE_PATH =
+      "/Applications/Devin.app/Contents/Resources/app/extensions/windsurf/devin/bin/devin";
+    const pathBin = Bun.which("devin");
+    const isMacOS = process.platform === "darwin";
+    const bundleBin = isMacOS && existsSync(DESKTOP_BUNDLE_PATH) ? DESKTOP_BUNDLE_PATH : null;
+    const selectedBin = pathBin ?? bundleBin;
+    const selectedSource = pathBin
+      ? "PATH"
+      : bundleBin
+        ? "Desktop bundle"
+        : null;
+    if (!selectedBin) {
+      // No binary found anywhere — advisory, not a hard failure.
       results.push({
-        pass: false,
-        label: "devin CLI on PATH",
-        fix: "install Devin CLI >= 3000.3.0 (https://devin.ai)",
+        pass: true,
+        label:
+          "devin CLI version unverified (no `devin` on PATH" +
+          (isMacOS ? " and no Desktop bundle" : "") +
+          "; install Devin CLI >= 3000.3.22 or install Desktop to verify)",
+        fix: "install Devin CLI >= 3000.3.22 (https://devin.ai) or install Devin Desktop",
       });
     } else {
-      const v = [Number(devinVerMatch[1]), Number(devinVerMatch[2]), Number(devinVerMatch[3])];
-      const ok =
-        v[0] > MIN_DEVIN[0] ||
-        (v[0] === MIN_DEVIN[0] &&
-          (v[1] > MIN_DEVIN[1] || (v[1] === MIN_DEVIN[1] && v[2] >= MIN_DEVIN[2])));
-      results.push({
-        pass: ok,
-        label: `devin CLI version ${devinVerMatch[0]} >= 3000.3.0 (modern .devin/ config layout: hooks.v1.json + dedicated mcp_config.json)`,
-        fix: "upgrade Devin CLI to 3000.3.0 or later",
+      // Found a binary — run --version and evaluate it.
+      const devinVer = Bun.spawnSync([selectedBin, "--version"], {
+        stdout: "pipe",
+        stderr: "pipe",
       });
+      const devinVerText = (devinVer.stdout?.toString() ?? "").trim();
+      const devinVerMatch = devinVerText.match(/(\d+)\.(\d+)\.(\d+)/);
+      const sourceLabel = selectedSource ? ` (${selectedSource}: ${selectedBin})` : "";
+      if (devinVer.exitCode !== 0 || !devinVerMatch) {
+        // Nonzero exit or unparseable output → the selected binary is broken
+        // or too old to understand --version. This is a FAILURE, not an
+        // advisory: the user has a devin but it does not work.
+        results.push({
+          pass: false,
+          label: `devin CLI version check failed${sourceLabel} (exited ${devinVer.exitCode}, output: "${devinVerText.slice(0, 80)}")`,
+          fix: `upgrade Devin CLI to >= 3000.3.22 (https://devin.ai) — the selected binary is broken or too old`,
+        });
+      } else {
+        const v = [Number(devinVerMatch[1]), Number(devinVerMatch[2]), Number(devinVerMatch[3])];
+        const ok =
+          v[0] > MIN_DEVIN[0] ||
+          (v[0] === MIN_DEVIN[0] &&
+            (v[1] > MIN_DEVIN[1] || (v[1] === MIN_DEVIN[1] && v[2] >= MIN_DEVIN[2])));
+        results.push({
+          pass: ok,
+          label: `devin CLI version ${devinVerMatch[0]}${ok ? " >= " : " < "}3000.3.22${sourceLabel} (exit-code-2/stderr blocking compatibility)`,
+          fix: "upgrade Devin CLI to 3000.3.22 or later",
+        });
+      }
     }
     // Hook approval reminder (advisory pass-with-label): Devin CLI prompts to
     // approve project hooks on first run; unapproved hooks never fire.
