@@ -1089,8 +1089,10 @@ button.primary:hover{color:#fff}
 button:disabled{opacity:.45;cursor:default}
 #cols{display:flex;flex:1;min-height:0}
 #pipeline{width:300px;min-width:230px;background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;flex:none}
-#center{flex:1;display:flex;flex-direction:column;min-width:0}
+#center{flex:1;display:flex;flex-direction:column;min-width:300px}
 #inspector{width:360px;min-width:260px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;flex:none}
+@media(max-width:1100px){#pipeline{width:210px;min-width:160px}#inspector{width:270px;min-width:210px}}
+@media(max-width:760px){#cols{flex-direction:column;overflow-y:auto}#pipeline,#inspector{width:auto;min-width:0;max-height:40%;flex:none}#center{flex:none;min-height:70vh}}
 .phase{border-bottom:1px solid var(--line)}
 .phase-h{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;user-select:none;color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.6px}
 .phase-h:hover{color:var(--text)}
@@ -1392,7 +1394,11 @@ function closeModal(){$('modal').style.display='none'}
 document.querySelectorAll('#tabs div').forEach(function(d){d.onclick=function(){S.tab=d.getAttribute('data-t');document.querySelectorAll('#tabs div').forEach(function(x){x.className=x===d?'on':''});renderInspector()}});
 $('b-send').onclick=sendPrompt;
 $('b-cancel').onclick=function(){fetch('/api/agent/cancel',{method:'POST'});sysline('cancel sent')};
-$('b-session').onclick=function(){fetch('/api/agent/session',{method:'POST'}).then(function(){sysline('new session requested')})};
+$('b-session').onclick=function(){var b=this;b.disabled=true;sysline('requesting new session…');
+  fetch('/api/agent/session',{method:'POST'})
+    .then(function(r){return r.json()})
+    .then(function(r){b.disabled=false;sysline(r&&r.sessionId?('session → '+r.sessionId):('session error: '+((r&&r.error)||'no response')))})
+    .catch(function(e){b.disabled=false;sysline('session error: '+e)});};
 $('prompt').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPrompt()}});
 $('modal').addEventListener('click',function(e){if(e.target.id==='modal')closeModal()});
 fetch('/api/state').then(function(r){return r.json()}).then(function(s){S.snap=s;renderHeader();renderPipeline();renderInspector()});
