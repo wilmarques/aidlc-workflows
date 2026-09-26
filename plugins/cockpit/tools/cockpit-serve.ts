@@ -1075,11 +1075,13 @@ html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font:13px/1.5 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;overflow:hidden}
 code,pre,.mono{font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 #app{display:flex;flex-direction:column;height:100%}
-header{display:flex;align-items:center;gap:14px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex:none}
-.logo{font-weight:700;font-size:15px;letter-spacing:.4px;color:var(--acc);white-space:nowrap}
+header{display:flex;align-items:center;gap:14px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex:none;flex-wrap:wrap;row-gap:4px}
+.logo{font-weight:700;font-size:15px;letter-spacing:.4px;color:var(--acc);white-space:nowrap;flex:none}
 .logo small{color:var(--dim);font-weight:400}
-.hdr-field{color:var(--dim)} .hdr-field b{color:var(--text);font-weight:600}
-.pill{padding:2px 9px;border-radius:20px;background:var(--chip);border:1px solid var(--line);color:var(--dim);font-size:11px;white-space:nowrap}
+.hdr-field{color:var(--dim);white-space:nowrap;min-width:0}
+.hdr-field b{display:inline-block;max-width:180px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
+.pill{padding:2px 9px;border-radius:20px;background:var(--chip);border:1px solid var(--line);color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px;flex:none}
+#b-session{flex:none;white-space:nowrap}
 .pill.ok{color:var(--green);border-color:#2c4d3a}.pill.warn{color:var(--amber);border-color:#57431e}.pill.bad{color:var(--red);border-color:#573030}
 .spacer{flex:1}
 button{background:var(--chip);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer}
@@ -1091,8 +1093,17 @@ button:disabled{opacity:.45;cursor:default}
 #pipeline{width:300px;min-width:230px;background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;flex:none}
 #center{flex:1;display:flex;flex-direction:column;min-width:300px}
 #inspector{width:360px;min-width:260px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;flex:none}
-@media(max-width:1100px){#pipeline{width:210px;min-width:160px}#inspector{width:270px;min-width:210px}}
-@media(max-width:760px){#cols{flex-direction:column;overflow-y:auto}#pipeline,#inspector{width:auto;min-width:0;max-height:40%;flex:none}#center{flex:none;min-height:70vh}}
+@media(max-width:1100px){#pipeline{width:190px;min-width:140px}#inspector{width:230px;min-width:180px}#center{min-width:280px}}
+@media(max-width:760px){
+  #cols{flex-direction:column;overflow-y:auto;padding-bottom:150px}
+  #pipeline{width:auto;min-width:0;flex:none;max-height:38vh;border-right:0;border-bottom:1px solid var(--line)}
+  #center{flex:none;min-width:0;min-height:0}
+  #stream{flex:none;min-height:150px;max-height:50vh}
+  #composer{position:fixed;left:0;right:0;bottom:0;z-index:6}
+  #inspector{width:auto;min-width:0;flex:none;max-height:65vh;border-left:0;border-top:1px solid var(--line)}
+  header{gap:8px 10px;padding:6px 10px}
+  .pill{max-width:46vw}
+}
 .phase{border-bottom:1px solid var(--line)}
 .phase-h{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;user-select:none;color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.6px}
 .phase-h:hover{color:var(--text)}
@@ -1130,7 +1141,7 @@ button:disabled{opacity:.45;cursor:default}
 #composer textarea{width:100%;min-height:44px;max-height:140px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 10px;font:inherit;resize:vertical}
 #composer .row{display:flex;gap:8px;margin-top:8px;align-items:center}
 #composer .hint{color:var(--dim);font-size:11px}
-#tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
+#tabs{display:flex;border-bottom:1px solid var(--line);flex:none;overflow-x:auto}
 #tabs div{padding:8px 10px;cursor:pointer;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
 #tabs div.on{color:var(--acc);border-bottom:2px solid var(--acc)}
 #insp-body{flex:1;overflow-y:auto;padding:10px 12px}
