@@ -1,0 +1,13 @@
+{
+  "name": "cockpit",
+  "version": "0.1.0",
+  "description": "Localhost AI-DLC workbench — a v2-style live interface (intent pipeline, parallel unit lanes, human gates, artifacts, audit feed, token/cost usage) served locally, with the harness agent connected over ACP (e.g. `devin acp`).",
+  "author": { "name": "AWS AIDLC" },
+  "dependencies": ["core"],
+  "aidlc": {
+    "contributes": {
+      "stages": "stages/",
+      "tools": "tools/"
+    }
+  }
+}
